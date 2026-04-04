@@ -25,7 +25,7 @@ A terminal-based AI coding assistant supporting multiple providers — Claude, G
 
 ### Download binary (recommended)
 
-Grab the latest release from the [Releases page](https://github.com/mmzs/openclaw-code/releases) and put it on your PATH:
+Grab the latest release from the [Releases page](https://github.com/zsigisti/openclaw-code/releases) and put it on your PATH:
 
 ```bash
 # Linux x86_64 example
