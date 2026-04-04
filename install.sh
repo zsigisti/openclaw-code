@@ -24,10 +24,21 @@ if [[ "$ARCH" != "x86_64" ]]; then
     error "Only x86_64 is supported in this release (detected: $ARCH)."
 fi
 
-# ── Dependency check ──────────────────────────────────────────────────────────
-for cmd in curl chmod; do
-    command -v "$cmd" &>/dev/null || error "Required tool not found: $cmd"
-done
+# ── Dependency check / auto-install curl ─────────────────────────────────────
+if ! command -v curl &>/dev/null; then
+    if command -v apt-get &>/dev/null; then
+        info "Installing curl..."
+        apt-get update -qq && apt-get install -y -qq curl
+    elif command -v pacman &>/dev/null; then
+        info "Installing curl..."
+        pacman -Sy --noconfirm curl
+    elif command -v dnf &>/dev/null; then
+        info "Installing curl..."
+        dnf install -y curl
+    else
+        error "curl not found and no supported package manager detected. Please install curl and retry."
+    fi
+fi
 
 # ── Download ──────────────────────────────────────────────────────────────────
 TMP_FILE="$(mktemp /tmp/openclaw-code.XXXXXX)"
