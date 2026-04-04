@@ -1,228 +1,139 @@
-# Rewriting Project Claw Code
+# openclaw-code
 
-<p align="center">
-  <strong>⭐ The fastest repo in history to surpass 50K stars, reaching the milestone in just 2 hours after publication ⭐</strong>
-</p>
+A terminal-based AI coding assistant supporting multiple providers — Claude, GPT, Grok, and GitHub Copilot. Inspired by Claude Code, built from scratch in Rust.
 
-<p align="center">
-  <a href="https://star-history.com/#instructkr/claw-code&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=instructkr/claw-code&type=Date" width="600" />
-    </picture>
-  </a>
-</p>
-
-<p align="center">
-  <img src="assets/clawd-hero.jpeg" alt="Claw" width="300" />
-</p>
-
-<p align="center">
-  <strong>Better Harness Tools, not merely storing the archive of leaked Claw Code</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/sponsors/instructkr"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github&style=for-the-badge" alt="Sponsor on GitHub" /></a>
-</p>
-
-> [!IMPORTANT]
-> **Rust port is now in progress** on the [`dev/rust`](https://github.com/instructkr/claw-code/tree/dev/rust) branch and is expected to be merged into main today. The Rust implementation aims to deliver a faster, memory-safe harness runtime. Stay tuned — this will be the definitive version of the project.
-
-> If you find this work useful, consider [sponsoring @instructkr on GitHub](https://github.com/sponsors/instructkr) to support continued open-source harness engineering research.
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-green)
+![Language](https://img.shields.io/badge/language-Rust-orange)
 
 ---
 
-## Rust Port
+## Features
 
-The Rust workspace under `rust/` is the current systems-language port of the project.
-
-It currently includes:
-
-- `crates/api-client` — API client with provider abstraction, OAuth, and streaming support
-- `crates/runtime` — session state, compaction, MCP orchestration, prompt construction
-- `crates/tools` — tool manifest definitions and execution framework
-- `crates/commands` — slash commands, skills discovery, and config inspection
-- `crates/plugins` — plugin model, hook pipeline, and bundled plugins
-- `crates/compat-harness` — compatibility layer for upstream editor integration
-- `crates/claw-cli` — interactive REPL, markdown rendering, and project bootstrap/init flows
-
-Run the Rust build:
-
-```bash
-cd rust
-cargo build --release
-```
-
-## Backstory
-
-At 4 AM on March 31, 2026, I woke up to my phone blowing up with notifications. The Claw Code source had been exposed, and the entire dev community was in a frenzy. My girlfriend in Korea was genuinely worried I might face legal action from the original authors just for having the code on my machine — so I did what any engineer would do under pressure: I sat down, ported the core features to Python from scratch, and pushed it before the sun came up.
-
-The whole thing was orchestrated end-to-end using [oh-my-codex (OmX)](https://github.com/Yeachan-Heo/oh-my-codex) by [@bellman_ych](https://x.com/bellman_ych) — a workflow layer built on top of OpenAI's Codex ([@OpenAIDevs](https://x.com/OpenAIDevs)). I used `$team` mode for parallel code review and `$ralph` mode for persistent execution loops with architect-level verification. The entire porting session — from reading the original harness structure to producing a working Python tree with tests — was driven through OmX orchestration.
-
-The result is a clean-room Python rewrite that captures the architectural patterns of Claw Code's agent harness without copying any proprietary source. I'm now actively collaborating with [@bellman_ych](https://x.com/bellman_ych) — the creator of OmX himself — to push this further. The basic Python foundation is already in place and functional, but we're just getting started. **Stay tuned — a much more capable version is on the way.**
-
-The Rust port was developed with both [oh-my-codex (OmX)](https://github.com/Yeachan-Heo/oh-my-codex) and [oh-my-opencode (OmO)](https://github.com/code-yeongyu/oh-my-openagent): OmX drove scaffolding, orchestration, and architecture direction, while OmO was used for later implementation acceleration and verification support.
-
-https://github.com/instructkr/claw-code
-
-![Tweet screenshot](assets/tweet-screenshot.png)
-
-## The Creators Featured in Wall Street Journal For Avid Claw Code Fans
-
-I've been deeply interested in **harness engineering** — studying how agent systems wire tools, orchestrate tasks, and manage runtime context. This isn't a sudden thing. The Wall Street Journal featured my work earlier this month, documenting how I've been one of the most active power users exploring these systems:
-
-> AI startup worker Sigrid Jin, who attended the Seoul dinner, single-handedly used 25 billion of Claw Code tokens last year. At the time, usage limits were looser, allowing early enthusiasts to reach tens of billions of tokens at a very low cost.
->
-> Despite his countless hours with Claw Code, Jin isn't faithful to any one AI lab. The tools available have different strengths and weaknesses, he said. Codex is better at reasoning, while Claw Code generates cleaner, more shareable code.
->
-> Jin flew to San Francisco in February for Claw Code's first birthday party, where attendees waited in line to compare notes with Cherny. The crowd included a practicing cardiologist from Belgium who had built an app to help patients navigate care, and a California lawyer who made a tool for automating building permit approvals using Claw Code.
->
-> "It was basically like a sharing party," Jin said. "There were lawyers, there were doctors, there were dentists. They did not have software engineering backgrounds."
->
-> — *The Wall Street Journal*, March 21, 2026, [*"The Trillion Dollar Race to Automate Our Entire Lives"*](https://lnkd.in/gs9td3qd)
-
-![WSJ Feature](assets/wsj-feature.png)
+- **Multi-provider** — Anthropic (Claude), OpenAI (GPT/o-series), xAI (Grok), GitHub Copilot
+- **Agentic tool loop** — reads, writes, edits files; runs bash; searches with glob/grep
+- **Diff display** — shows compact summaries for new files, full diffs for edits
+- **OAuth login** — browser-based Anthropic OAuth (free tier) or API key
+- **Setup wizard** — guided first-run onboarding via `openclaw-code setup`
+- **Keyboard shortcuts** — Ctrl+A/E/U/K/W, Alt+arrows, word navigation
+- **Slash commands** — `/help`, `/model`, `/clear`, `/compact`
+- **Persistent config** — model and settings stored in `~/.config/openclaw-code/`
 
 ---
 
-## Porting Status
+## Install
 
-The main source tree is now Python-first.
+### Download binary (recommended)
 
-- `src/` contains the active Python porting workspace
-- `tests/` verifies the current Python workspace
-- the exposed snapshot is no longer part of the tracked repository state
-
-The current Python workspace is not yet a complete one-to-one replacement for the original system, but the primary implementation surface is now Python.
-
-## Why this rewrite exists
-
-I originally studied the exposed codebase to understand its harness, tool wiring, and agent workflow. After spending more time with the legal and ethical questions—and after reading the essay linked below—I did not want the exposed snapshot itself to remain the main tracked source tree.
-
-This repository now focuses on Python porting work instead.
-
-## Repository Layout
-
-```text
-.
-├── src/                                # Python porting workspace
-│   ├── __init__.py
-│   ├── commands.py
-│   ├── main.py
-│   ├── models.py
-│   ├── port_manifest.py
-│   ├── query_engine.py
-│   ├── task.py
-│   └── tools.py
-├── rust/                               # Rust port (claw CLI)
-│   ├── crates/api/                     # API client + streaming
-│   ├── crates/runtime/                 # Session, tools, MCP, config
-│   ├── crates/claw-cli/               # Interactive CLI binary
-│   ├── crates/plugins/                 # Plugin system
-│   ├── crates/commands/                # Slash commands
-│   ├── crates/server/                  # HTTP/SSE server (axum)
-│   ├── crates/lsp/                    # LSP client integration
-│   └── crates/tools/                   # Tool specs
-├── tests/                              # Python verification
-├── assets/omx/                         # OmX workflow screenshots
-├── 2026-03-09-is-legal-the-same-as-legitimate-ai-reimplementation-and-the-erosion-of-copyleft.md
-└── README.md
-```
-
-## Python Workspace Overview
-
-The new Python `src/` tree currently provides:
-
-- **`port_manifest.py`** — summarizes the current Python workspace structure
-- **`models.py`** — dataclasses for subsystems, modules, and backlog state
-- **`commands.py`** — Python-side command port metadata
-- **`tools.py`** — Python-side tool port metadata
-- **`query_engine.py`** — renders a Python porting summary from the active workspace
-- **`main.py`** — a CLI entrypoint for manifest and summary output
-
-## Quickstart
-
-Render the Python porting summary:
+Grab the latest release from the [Releases page](https://github.com/mmzs/openclaw-code/releases) and put it on your PATH:
 
 ```bash
-python3 -m src.main summary
+# Linux x86_64 example
+curl -Lo openclaw-code https://github.com/mmzs/openclaw-code/releases/latest/download/openclaw-code-linux-x86_64
+chmod +x openclaw-code
+sudo mv openclaw-code /usr/local/bin/
 ```
 
-Print the current Python workspace manifest:
+### Build from source
+
+Requires Rust stable (1.75+):
 
 ```bash
-python3 -m src.main manifest
+git clone https://github.com/mmzs/openclaw-code
+cd openclaw-code/rust
+cargo build --release -p openclaw-code
+# Binary at: ./target/release/openclaw-code
 ```
 
-List the current Python modules:
+---
+
+## Setup
+
+Run the interactive setup wizard on first use:
 
 ```bash
-python3 -m src.main subsystems --limit 16
+openclaw-code setup
 ```
 
-Run verification:
+This walks you through choosing a provider and entering credentials. Credentials are saved to `~/.config/openclaw-code/auth.json`.
+
+You can also set credentials via environment variables:
+
+| Variable               | Provider                      |
+|------------------------|-------------------------------|
+| `ANTHROPIC_API_KEY`    | Claude models                 |
+| `ANTHROPIC_AUTH_TOKEN` | Claude (OAuth bearer token)   |
+| `OPENAI_API_KEY`       | GPT / o-series / Codex        |
+| `XAI_API_KEY`          | Grok models                   |
+| `GITHUB_COPILOT_TOKEN` | GitHub Copilot                |
+
+---
+
+## Usage
 
 ```bash
-python3 -m unittest discover -s tests -v
+openclaw-code                          # start with last-used model
+openclaw-code claude-sonnet-4-6        # start with a specific model
+openclaw-code setup                    # run the setup wizard
+openclaw-code login                    # re-run the CLI login flow
 ```
 
-Run the parity audit against the local ignored archive (when present):
+### Keyboard shortcuts
 
-```bash
-python3 -m src.main parity-audit
+| Shortcut         | Action                        |
+|------------------|-------------------------------|
+| `Enter`          | Send message                  |
+| `Ctrl+C` / `Esc` | Quit / cancel                 |
+| `Ctrl+A`         | Move to start of line         |
+| `Ctrl+E`         | Move to end of line           |
+| `Ctrl+U`         | Delete to start of line       |
+| `Ctrl+K`         | Delete to end of line         |
+| `Ctrl+W`         | Delete word before cursor     |
+| `Alt+←` / `Alt+→`| Move word left / right        |
+| `Page Up/Down`   | Scroll conversation           |
+
+### Slash commands
+
+| Command    | Description                        |
+|------------|------------------------------------|
+| `/help`    | Show available commands            |
+| `/model`   | Switch AI model                    |
+| `/clear`   | Clear conversation history         |
+| `/compact` | Summarise and compact the context  |
+
+---
+
+## Supported models
+
+| Provider         | Example models                                          |
+|------------------|---------------------------------------------------------|
+| Anthropic        | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6` |
+| OpenAI           | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`               |
+| xAI              | `grok-2`, `grok-2-mini`                                 |
+| GitHub Copilot   | `gpt-4o` (via Copilot endpoint)                         |
+
+---
+
+## Configuration
+
+Config and credentials live under `~/.config/openclaw-code/`:
+
+```
+~/.config/openclaw-code/
+├── config.json      # last-used model, preferences
+└── auth.json        # saved credentials (from setup wizard)
 ```
 
-Inspect mirrored command/tool inventories:
+Legacy credentials from `~/.openclaw/agents/main/agent/auth-profiles.json` are read automatically for backward compatibility.
 
-```bash
-python3 -m src.main commands --limit 10
-python3 -m src.main tools --limit 10
-```
+---
 
-## Current Parity Checkpoint
+## License
 
-The port now mirrors the archived root-entry file surface, top-level subsystem names, and command/tool inventories much more closely than before. However, it is **not yet** a full runtime-equivalent replacement for the original TypeScript system; the Python tree still contains fewer executable runtime slices than the archived source.
+Copyright (C) 2024 mmzs
 
-## Built with `oh-my-codex` and `oh-my-opencode`
+This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License** as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-This repository's porting, cleanroom hardening, and verification workflow was AI-assisted with Yeachan Heo's tooling stack, with **oh-my-codex (OmX)** as the primary scaffolding and orchestration layer.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-- [**oh-my-codex (OmX)**](https://github.com/Yeachan-Heo/oh-my-codex) — scaffolding, orchestration, architecture direction, and core porting workflow
-- [**oh-my-opencode (OmO)**](https://github.com/code-yeongyu/oh-my-openagent) — implementation acceleration, cleanup, and verification support
-
-Key workflow patterns used during the port:
-
-- **`$team` mode:** coordinated parallel review and architectural feedback
-- **`$ralph` mode:** persistent execution, verification, and completion discipline
-- **Cleanroom passes:** naming/branding cleanup, QA, and release validation across the Rust workspace
-- **Manual and live validation:** build, test, manual QA, and real API-path verification before publish
-
-### OmX workflow screenshots
-
-![OmX workflow screenshot 1](assets/omx/omx-readme-review-1.png)
-
-*Ralph/team orchestration view while the README and essay context were being reviewed in terminal panes.*
-
-![OmX workflow screenshot 2](assets/omx/omx-readme-review-2.png)
-
-*Split-pane review and verification flow during the final README wording pass.*
-
-## Community
-
-<p align="center">
-  <a href="https://instruct.kr/"><img src="assets/instructkr.png" alt="instructkr" width="400" /></a>
-</p>
-
-Join the [**instructkr Discord**](https://instruct.kr/) — the best Korean language model community. Come chat about LLMs, harness engineering, agent workflows, and everything in between.
-
-[![Discord](https://img.shields.io/badge/Join%20Discord-instruct.kr-5865F2?logo=discord&style=for-the-badge)](https://instruct.kr/)
-
-## Star History
-
-See the chart at the top of this README.
-
-## Ownership / Affiliation Disclaimer
-
-- This repository does **not** claim ownership of the original Claw Code source material.
-- This repository is **not affiliated with, endorsed by, or maintained by the original authors**.
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
