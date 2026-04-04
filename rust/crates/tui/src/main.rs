@@ -66,7 +66,7 @@ fn main() {
             .as_ref()
             .is_some_and(|c| c.github_copilot_token.is_some());
     if !has_anthropic && !has_openai && !has_xai && !has_copilot {
-        eprintln!("No API credentials found. Run 'openclaw-code login' to set up, or set one of:");
+        eprintln!("No API credentials found. Run 'openclaw-code setup' to set up, or set one of:");
         eprintln!("  ANTHROPIC_API_KEY      — Claude models");
         eprintln!("  OPENAI_API_KEY         — GPT / o-series / Codex models");
         eprintln!("  XAI_API_KEY            — Grok models");
