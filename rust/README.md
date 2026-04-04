@@ -1,122 +1,139 @@
-# Claw Code
+# openclaw-code
 
-Claw Code is a local coding-agent CLI implemented in safe Rust. It is **Claude Code inspired** and developed as a **clean-room implementation**: it aims for a strong local agent experience, but it is **not** a direct port or copy of Claude Code.
+A terminal-based AI coding assistant supporting multiple providers — Claude, GPT, Grok, and GitHub Copilot. Inspired by Claude Code, built from scratch in Rust.
 
-The Rust workspace is the current main product surface. The `claw` binary provides interactive sessions, one-shot prompts, workspace-aware tools, local agent workflows, and plugin-capable operation from a single workspace.
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-green)
+![Language](https://img.shields.io/badge/language-Rust-orange)
 
-## Current status
+---
 
-- **Version:** `0.1.0`
-- **Release stage:** initial public release, source-build distribution
-- **Primary implementation:** Rust workspace in this repository
-- **Platform focus:** macOS and Linux developer workstations
+## Features
 
-## Install, build, and run
+- **Multi-provider** — Anthropic (Claude), OpenAI (GPT/o-series), xAI (Grok), GitHub Copilot
+- **Agentic tool loop** — reads, writes, edits files; runs bash; searches with glob/grep
+- **Diff display** — shows compact summaries for new files, full diffs for edits
+- **OAuth login** — browser-based Anthropic OAuth (free tier) or API key
+- **Setup wizard** — guided first-run onboarding via `openclaw-code setup`
+- **Keyboard shortcuts** — Ctrl+A/E/U/K/W, Alt+arrows, word navigation
+- **Slash commands** — `/help`, `/model`, `/clear`, `/compact`
+- **Persistent config** — model and settings stored in `~/.config/openclaw-code/`
 
-### Prerequisites
+---
 
-- Rust stable toolchain
-- Cargo
-- Provider credentials for the model you want to use
+## Install
 
-### Authentication
+### Download binary (recommended)
 
-Anthropic-compatible models:
-
-```bash
-export ANTHROPIC_API_KEY="..."
-# Optional when using a compatible endpoint
-export ANTHROPIC_BASE_URL="https://api.anthropic.com"
-```
-
-Grok models:
+Grab the latest release from the [Releases page](https://github.com/mmzs/openclaw-code/releases) and put it on your PATH:
 
 ```bash
-export XAI_API_KEY="..."
-# Optional when using a compatible endpoint
-export XAI_BASE_URL="https://api.x.ai"
-```
-
-OAuth login is also available:
-
-```bash
-cargo run --bin claw -- login
-```
-
-### Install locally
-
-```bash
-cargo install --path crates/claw-cli --locked
+# Linux x86_64 example
+curl -Lo openclaw-code https://github.com/mmzs/openclaw-code/releases/latest/download/openclaw-code-linux-x86_64
+chmod +x openclaw-code
+sudo mv openclaw-code /usr/local/bin/
 ```
 
 ### Build from source
 
-```bash
-cargo build --release -p claw-cli
-```
-
-### Run
-
-From the workspace:
+Requires Rust stable (1.75+):
 
 ```bash
-cargo run --bin claw -- --help
-cargo run --bin claw --
-cargo run --bin claw -- prompt "summarize this workspace"
-cargo run --bin claw -- --model sonnet "review the latest changes"
+git clone https://github.com/mmzs/openclaw-code
+cd openclaw-code/rust
+cargo build --release -p openclaw-code
+# Binary at: ./target/release/openclaw-code
 ```
 
-From the release build:
+---
+
+## Setup
+
+Run the interactive setup wizard on first use:
 
 ```bash
-./target/release/claw
-./target/release/claw prompt "explain crates/runtime"
+openclaw-code setup
 ```
 
-## Supported capabilities
+This walks you through choosing a provider and entering credentials. Credentials are saved to `~/.config/openclaw-code/auth.json`.
 
-- Interactive REPL and one-shot prompt execution
-- Saved-session inspection and resume flows
-- Built-in workspace tools for shell, file read/write/edit, search, web fetch/search, todos, and notebook updates
-- Slash commands for status, compaction, config inspection, diff, export, session management, and version reporting
-- Local agent and skill discovery with `claw agents` and `claw skills`
-- Plugin discovery and management through the CLI and slash-command surfaces
-- OAuth login/logout plus model/provider selection from the command line
-- Workspace-aware instruction/config loading (`CLAW.md`, config files, permissions, plugin settings)
+You can also set credentials via environment variables:
 
-## Current limitations
+| Variable               | Provider                      |
+|------------------------|-------------------------------|
+| `ANTHROPIC_API_KEY`    | Claude models                 |
+| `ANTHROPIC_AUTH_TOKEN` | Claude (OAuth bearer token)   |
+| `OPENAI_API_KEY`       | GPT / o-series / Codex        |
+| `XAI_API_KEY`          | Grok models                   |
+| `GITHUB_COPILOT_TOKEN` | GitHub Copilot                |
 
-- Public distribution is **source-build only** today; this workspace is not set up for crates.io publishing
-- GitHub CI verifies `cargo check`, `cargo test`, and release builds, but automated release packaging is not yet present
-- Current CI targets Ubuntu and macOS; Windows release readiness is still to be established
-- Some live-provider integration coverage is opt-in because it requires external credentials and network access
-- The command surface may continue to evolve during the `0.x` series
+---
 
-## Implementation
+## Usage
 
-The Rust workspace is the active product implementation. It currently includes these crates:
+```bash
+openclaw-code                          # start with last-used model
+openclaw-code claude-sonnet-4-6        # start with a specific model
+openclaw-code setup                    # run the setup wizard
+openclaw-code login                    # re-run the CLI login flow
+```
 
-- `claw-cli` — user-facing binary
-- `api` — provider clients and streaming
-- `runtime` — sessions, config, permissions, prompts, and runtime loop
-- `tools` — built-in tool implementations
-- `commands` — slash-command registry and handlers
-- `plugins` — plugin discovery, registry, and lifecycle support
-- `lsp` — language-server protocol support types and process helpers
-- `server` and `compat-harness` — supporting services and compatibility tooling
+### Keyboard shortcuts
 
-## Roadmap
+| Shortcut         | Action                        |
+|------------------|-------------------------------|
+| `Enter`          | Send message                  |
+| `Ctrl+C` / `Esc` | Quit / cancel                 |
+| `Ctrl+A`         | Move to start of line         |
+| `Ctrl+E`         | Move to end of line           |
+| `Ctrl+U`         | Delete to start of line       |
+| `Ctrl+K`         | Delete to end of line         |
+| `Ctrl+W`         | Delete word before cursor     |
+| `Alt+←` / `Alt+→`| Move word left / right        |
+| `Page Up/Down`   | Scroll conversation           |
 
-- Publish packaged release artifacts for public installs
-- Add a repeatable release workflow and longer-lived changelog discipline
-- Expand platform verification beyond the current CI matrix
-- Add more task-focused examples and operator documentation
-- Continue tightening feature coverage and UX polish across the Rust implementation
+### Slash commands
 
-## Release notes
+| Command    | Description                        |
+|------------|------------------------------------|
+| `/help`    | Show available commands            |
+| `/model`   | Switch AI model                    |
+| `/clear`   | Clear conversation history         |
+| `/compact` | Summarise and compact the context  |
 
-- Draft 0.1.0 release notes: [`docs/releases/0.1.0.md`](docs/releases/0.1.0.md)
+---
+
+## Supported models
+
+| Provider         | Example models                                          |
+|------------------|---------------------------------------------------------|
+| Anthropic        | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6` |
+| OpenAI           | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`               |
+| xAI              | `grok-2`, `grok-2-mini`                                 |
+| GitHub Copilot   | `gpt-4o` (via Copilot endpoint)                         |
+
+---
+
+## Configuration
+
+Config and credentials live under `~/.config/openclaw-code/`:
+
+```
+~/.config/openclaw-code/
+├── config.json      # last-used model, preferences
+└── auth.json        # saved credentials (from setup wizard)
+```
+
+Legacy credentials from `~/.openclaw/agents/main/agent/auth-profiles.json` are read automatically for backward compatibility.
+
+---
 
 ## License
 
-See the repository root for licensing details.
+Copyright (C) 2024 mmzs
+
+This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License** as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.

@@ -9,6 +9,7 @@
 use std::env;
 use std::path::PathBuf;
 
+use serde_json::Value;
 
 /// Credentials loaded from the `OpenClaw` auth-profiles store.
 #[derive(Debug, Default)]

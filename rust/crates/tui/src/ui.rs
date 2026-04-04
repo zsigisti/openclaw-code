@@ -9,7 +9,8 @@ use ratatui::Frame;
 use runtime::{format_usd, pricing_for_model, TokenUsage};
 
 use crate::app::{
-    App, DisplayItem, OnboardStep, Role, Status, ToolState, KNOWN_MODELS, ONBOARD_PROVIDERS,
+    App, DisplayItem, OnboardPopup, OnboardStep, Role, Status, ToolState, KNOWN_MODELS,
+    ONBOARD_PROVIDERS,
 };
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -422,7 +423,7 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
 fn render_statusbar(f: &mut Frame, app: &App, area: Rect) {
     let extra = if matches!(app.status, Status::Streaming) { "  ⠙ streaming" } else { "" };
     let bar = format!(
-        " Enter:send  Alt+Enter:↵  Ctrl+P:model  Ctrl+W:word  Ctrl+U:clear  /onboard  /help{extra} "
+        " Enter:send  Alt+Enter:↵  Ctrl+P:model  Ctrl+W:word  Ctrl+U:clear  /help  `setup` to configure{extra} "
     );
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(bar, Style::default().fg(C_DIM)))),
@@ -512,166 +513,208 @@ fn render_model_picker(f: &mut Frame, app: &App, area: Rect) {
 
 // ── Onboard wizard popup ───────────────────────────────────────────────────
 
+fn onboard_popup_rect(area: Rect) -> Rect {
+    let w = 60u16;
+    let h = 16u16;
+    let x = area.width.saturating_sub(w) / 2;
+    let y = area.height.saturating_sub(h) / 2;
+    Rect::new(x, y, w.min(area.width), h.min(area.height))
+}
+
+fn onboard_block(title: String, color: Color) -> Block<'static> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(color))
+        .title(Span::styled(title, Style::default().fg(color).add_modifier(Modifier::BOLD)))
+}
+
 fn render_onboard(f: &mut Frame, app: &App, area: Rect) {
     let Some(ob) = &app.onboard else { return };
-
-    let popup_w = 58u16;
-    let popup_h = 16u16;
-    let x = area.width.saturating_sub(popup_w) / 2;
-    let y = area.height.saturating_sub(popup_h) / 2;
-    let popup = Rect::new(x, y, popup_w.min(area.width), popup_h.min(area.height));
-
+    let popup = onboard_popup_rect(area);
     f.render_widget(Clear, popup);
 
     match &ob.step {
-        OnboardStep::PickProvider => {
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(C_ACCENT))
-                .title(Span::styled(
-                    " ◈ OpenClaw Code — Setup  ↑↓ select  Enter confirm  Esc close ",
-                    Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD),
-                ));
+        OnboardStep::PickProvider => render_onboard_pick(f, ob, popup),
+        OnboardStep::ChooseAuthMethod { provider } => render_onboard_auth_method(f, ob, *provider, popup),
+        OnboardStep::EnterKey { provider } => render_onboard_key(f, ob, *provider, popup),
+        OnboardStep::Done => render_onboard_done(f, popup),
+    }
+}
 
-            let inner = block.inner(popup);
-            f.render_widget(block, popup);
+fn render_onboard_pick(f: &mut Frame, ob: &OnboardPopup, popup: Rect) {
+    let block = onboard_block(
+        " ◈ Setup — Choose Provider   ↑↓ navigate   Enter select   Esc close ".to_string(),
+        C_ACCENT,
+    );
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
 
-            let mut lines: Vec<Line<'_>> = vec![
-                Line::default(),
-                Line::from(Span::styled(
-                    "  Which provider would you like to configure?",
-                    Style::default().fg(Color::White),
-                )),
-                Line::default(),
-            ];
+    let mut lines: Vec<Line<'_>> = vec![
+        Line::default(),
+        Line::from(Span::styled(
+            "  Which AI provider would you like to configure?",
+            Style::default().fg(Color::White),
+        )),
+        Line::default(),
+    ];
 
-            for (i, (name, desc, _)) in ONBOARD_PROVIDERS.iter().enumerate() {
-                let selected = i == ob.provider_cursor;
-                let (prefix, style) = if selected {
-                    ("  ▶ ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD))
-                } else {
-                    ("    ", Style::default().fg(C_DIM))
-                };
-                lines.push(Line::from(vec![
-                    Span::styled(prefix, style),
-                    Span::styled(format!("{name:<12}"), style),
-                    Span::styled(*desc, Style::default().fg(if selected { Color::White } else { C_DIM })),
-                ]));
-            }
+    for (i, (name, desc, _)) in ONBOARD_PROVIDERS.iter().enumerate() {
+        let sel = i == ob.provider_cursor;
+        let arrow = if sel { "▶ " } else { "  " };
+        let name_style = if sel {
+            Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(C_DIM)
+        };
+        let desc_style = if sel {
+            Style::default().fg(Color::White)
+        } else {
+            Style::default().fg(C_DIM)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(format!("  {arrow}"), name_style),
+            Span::styled(format!("{name:<13}"), name_style),
+            Span::styled(*desc, desc_style),
+        ]));
+    }
 
-            f.render_widget(Paragraph::new(Text::from(lines)), inner);
-        }
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
+}
 
-        OnboardStep::EnterKey { provider } => {
-            let (name, _, env_var) = ONBOARD_PROVIDERS[*provider];
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(C_ACCENT))
-                .title(Span::styled(
-                    format!(" ◈ {name} — API Key  Enter confirm  Esc back "),
-                    Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD),
-                ));
+fn render_onboard_auth_method(f: &mut Frame, ob: &OnboardPopup, provider: usize, popup: Rect) {
+    let (name, _, _) = ONBOARD_PROVIDERS[provider];
+    let block = onboard_block(
+        format!(" ◈ {name} — Auth Method   1/2 select   Esc back "),
+        C_ACCENT,
+    );
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
 
-            let inner = block.inner(popup);
-            f.render_widget(block, popup);
+    let mut lines = vec![
+        Line::default(),
+        Line::from(Span::styled(
+            "  How would you like to authenticate?",
+            Style::default().fg(Color::White),
+        )),
+        Line::default(),
+        Line::from(vec![
+            Span::styled("  [1]  ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("API Key          ", Style::default().fg(Color::White)),
+            Span::styled("from console.anthropic.com", Style::default().fg(C_DIM)),
+        ]),
+        Line::from(vec![
+            Span::styled("  [2]  ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("OAuth (browser)  ", Style::default().fg(Color::White)),
+            Span::styled("free tier — Haiku only", Style::default().fg(C_DIM)),
+        ]),
+    ];
 
-            // Mask the key input (show last 4 chars, rest as •)
-            let masked = if ob.key_input.len() > 4 {
-                format!(
-                    "{}{}",
-                    "•".repeat(ob.key_input.len() - 4),
-                    &ob.key_input[ob.key_input.len() - 4..]
-                )
-            } else {
-                ob.key_input.clone()
-            };
+    if let Some(err) = &ob.error {
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled("  ✘ ", Style::default().fg(C_RED)),
+            Span::styled(err.clone(), Style::default().fg(C_RED)),
+        ]));
+    }
 
-            let mut lines = vec![
-                Line::default(),
-                Line::from(Span::styled(
-                    format!("  Set your {env_var}:"),
-                    Style::default().fg(Color::White),
-                )),
-                Line::default(),
-            ];
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
+}
 
-            // Key input field.
-            let key_display = if ob.key_input.is_empty() {
-                Span::styled("  enter key here…", Style::default().fg(C_DIM))
-            } else {
-                Span::styled(format!("  {masked}"), Style::default().fg(Color::White))
-            };
+fn render_onboard_key(f: &mut Frame, ob: &OnboardPopup, provider: usize, popup: Rect) {
+    let (name, _, env_var) = ONBOARD_PROVIDERS[provider];
+    let block = onboard_block(
+        format!(" ◈ {name} — API Key   Enter confirm   Esc back "),
+        C_ACCENT,
+    );
 
-            lines.push(Line::from(vec![
-                Span::styled(
-                    "  ╭──────────────────────────────────────────────────╮",
-                    Style::default().fg(C_BORDER),
-                ),
-            ]));
-            lines.push(Line::from(vec![
-                Span::styled("  │ ", Style::default().fg(C_BORDER)),
-                key_display,
-            ]));
-            lines.push(Line::from(vec![
-                Span::styled(
-                    "  ╰──────────────────────────────────────────────────╯",
-                    Style::default().fg(C_BORDER),
-                ),
-            ]));
+    // Split popup: block border, then inside we render a labelled input widget.
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
 
-            if let Some(err) = &ob.error {
-                lines.push(Line::default());
-                lines.push(Line::from(vec![
+    // Mask: show last 4 chars, rest as •
+    let masked: String = if ob.key_input.len() > 4 {
+        format!("{}{}", "•".repeat(ob.key_input.len() - 4), &ob.key_input[ob.key_input.len() - 4..])
+    } else {
+        ob.key_input.clone()
+    };
+
+    // Layout: label row + input block + optional error
+    let input_area = Rect {
+        x: inner.x + 2,
+        y: inner.y + 3,
+        width: inner.width.saturating_sub(4),
+        height: 3,
+    };
+
+    let lines = vec![
+        Line::default(),
+        Line::default(),
+        Line::from(Span::styled(
+            format!("  {env_var}"),
+            Style::default().fg(C_DIM),
+        )),
+    ];
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
+
+    // Input field as a proper bordered block.
+    let key_text = if ob.key_input.is_empty() {
+        Span::styled("  paste or type key…", Style::default().fg(C_DIM))
+    } else {
+        Span::styled(format!("  {masked}"), Style::default().fg(Color::White))
+    };
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(C_ACCENT));
+    f.render_widget(Paragraph::new(key_text).block(input_block), input_area);
+
+    // Cursor position inside the input block.
+    let cx = (input_area.x + 3 + masked.len() as u16).min(input_area.x + input_area.width - 2);
+    let cy = input_area.y + 1;
+    f.set_cursor_position((cx, cy));
+
+    if let Some(err) = &ob.error {
+        let err_y = input_area.y + input_area.height + 1;
+        if err_y < inner.y + inner.height {
+            let err_area = Rect { x: inner.x, y: err_y, width: inner.width, height: 1 };
+            f.render_widget(
+                Paragraph::new(Line::from(vec![
                     Span::styled("  ✘ ", Style::default().fg(C_RED)),
                     Span::styled(err.clone(), Style::default().fg(C_RED)),
-                ]));
-            }
-
-            f.render_widget(Paragraph::new(Text::from(lines)), inner);
-
-            // Cursor inside the field.
-            let cx = inner.x + 4 + u16::try_from(masked.len()).unwrap_or(u16::MAX);
-            f.set_cursor_position((cx.min(inner.x + inner.width - 1), inner.y + 5));
-        }
-
-        OnboardStep::Done => {
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(C_GREEN))
-                .title(Span::styled(
-                    " ◈ Setup Complete ",
-                    Style::default().fg(C_GREEN).add_modifier(Modifier::BOLD),
-                ));
-
-            let inner = block.inner(popup);
-            f.render_widget(block, popup);
-
-            let lines = vec![
-                Line::default(),
-                Line::from(Span::styled(
-                    "  ✔  Credentials saved successfully!",
-                    Style::default().fg(C_GREEN).add_modifier(Modifier::BOLD),
-                )),
-                Line::default(),
-                Line::from(Span::styled(
-                    "  Your key is active for this session and",
-                    Style::default().fg(Color::White),
-                )),
-                Line::from(Span::styled(
-                    "  stored in ~/.openclaw for future sessions.",
-                    Style::default().fg(Color::White),
-                )),
-                Line::default(),
-                Line::from(Span::styled(
-                    "  Press any key to continue.",
-                    Style::default().fg(C_DIM),
-                )),
-            ];
-
-            f.render_widget(Paragraph::new(Text::from(lines)), inner);
+                ])),
+                err_area,
+            );
         }
     }
+}
+
+fn render_onboard_done(f: &mut Frame, popup: Rect) {
+    let block = onboard_block(" ◈ Setup Complete ".to_string(), C_GREEN);
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let lines = vec![
+        Line::default(),
+        Line::from(Span::styled(
+            "  ✔  Credentials saved successfully!",
+            Style::default().fg(C_GREEN).add_modifier(Modifier::BOLD),
+        )),
+        Line::default(),
+        Line::from(Span::styled(
+            "  Your key is active for this session and stored in",
+            Style::default().fg(Color::White),
+        )),
+        Line::from(Span::styled(
+            "  ~/.config/openclaw-code/auth.json",
+            Style::default().fg(C_ACCENT),
+        )),
+        Line::default(),
+        Line::from(Span::styled(
+            "  Press any key to continue.",
+            Style::default().fg(C_DIM),
+        )),
+    ];
+
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
 }
