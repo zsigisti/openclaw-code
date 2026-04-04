@@ -28,7 +28,7 @@ A terminal-based AI coding assistant supporting multiple providers — Claude, G
 ### One-line install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zsigisti/openclaw-code/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zsigisti/openclaw-code/master/install.sh | bash
 ```
 
 The script downloads the binary, installs it to `/usr/local/bin`, and prints setup instructions. Uses `sudo` only if needed.
