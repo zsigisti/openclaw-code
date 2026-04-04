@@ -2,7 +2,7 @@
 
 A terminal-based AI coding assistant supporting multiple providers — Claude, GPT, Grok, and GitHub Copilot. Inspired by Claude Code, built from scratch in Rust.
 
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue)
+![Platform](https://img.shields.io/badge/platform-Linux-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 ![Language](https://img.shields.io/badge/language-Rust-orange)
 
@@ -23,13 +23,20 @@ A terminal-based AI coding assistant supporting multiple providers — Claude, G
 
 ## Install
 
-### Download binary (recommended)
+> **Linux x86\_64 only.** macOS and other platforms are not yet packaged — build from source instead.
 
-Grab the latest release from the [Releases page](https://github.com/zsigisti/openclaw-code/releases) and put it on your PATH:
+### One-line install (recommended)
 
 ```bash
-# Linux x86_64 example
-curl -Lo openclaw-code https://github.com/mmzs/openclaw-code/releases/latest/download/openclaw-code-linux-x86_64
+curl -fsSL https://raw.githubusercontent.com/zsigisti/openclaw-code/main/install.sh | bash
+```
+
+The script downloads the binary, installs it to `/usr/local/bin`, and prints setup instructions. Uses `sudo` only if needed.
+
+### Manual download
+
+```bash
+curl -Lo openclaw-code https://github.com/zsigisti/openclaw-code/releases/download/beta/openclaw-code
 chmod +x openclaw-code
 sudo mv openclaw-code /usr/local/bin/
 ```
@@ -39,7 +46,7 @@ sudo mv openclaw-code /usr/local/bin/
 Requires Rust stable (1.75+):
 
 ```bash
-git clone https://github.com/mmzs/openclaw-code
+git clone https://github.com/zsigisti/openclaw-code
 cd openclaw-code/rust
 cargo build --release -p openclaw-code
 # Binary at: ./target/release/openclaw-code
