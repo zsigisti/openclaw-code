@@ -14,6 +14,31 @@ fn main() {
     // Check for subcommands before doing anything else.
     let args: Vec<String> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        Some("help") | Some("--help") | Some("-h") => {
+            println!("openclaw-code — multi-provider AI chat\n");
+            println!("USAGE");
+            println!("  openclaw-code [model]              Start chat TUI");
+            println!("  openclaw-code setup [model]        Configure credentials (interactive)");
+            println!("  openclaw-code login                CLI credential wizard");
+            println!("  openclaw-code telegram [model]     Run 24/7 Telegram bot");
+            println!("  openclaw-code help                 Show this message\n");
+            println!("MODELS");
+            println!("  claude-sonnet-4-6  claude-opus-4-6  claude-haiku-4-5-20251001");
+            println!("  gemini-2.5-pro     gemini-2.5-flash gemini-2.0-flash");
+            println!("  gpt-4.1            gpt-4o           o3  o4-mini");
+            println!("  grok-3             grok-3-mini");
+            println!("  github-copilot/gpt-4o  github-copilot/gpt-4.1\n");
+            println!("  Aliases: opus  sonnet  haiku  grok  grok-mini\n");
+            println!("CREDENTIALS");
+            println!("  ANTHROPIC_API_KEY      Claude models");
+            println!("  OPENAI_API_KEY         GPT / o-series / Codex models");
+            println!("  XAI_API_KEY            Grok models");
+            println!("  GITHUB_COPILOT_TOKEN   GitHub Copilot models");
+            println!("  GOOGLE_API_KEY         Gemini models");
+            println!("  TELEGRAM_BOT_TOKEN     Telegram bot (telegram subcommand)\n");
+            println!("  Credentials can also be saved with: openclaw-code setup");
+            std::process::exit(0);
+        }
         Some("login") => {
             match login::run_login() {
                 Ok(()) => std::process::exit(0),
