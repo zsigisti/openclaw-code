@@ -104,7 +104,7 @@ pub fn run_login() -> Result<(), String> {
 
 // ── GitHub Copilot device flow ────────────────────────────────────────────────
 
-fn github_copilot_device_flow() -> Result<(), String> {
+pub fn github_copilot_device_flow() -> Result<(), String> {
     println!("\n  Starting GitHub Copilot device login…");
     println!("  (Requires a GitHub account with an active Copilot subscription.)");
 

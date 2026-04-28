@@ -2,6 +2,7 @@ mod app;
 mod auth;
 mod config;
 mod login;
+mod telegram;
 mod ui;
 
 use std::env;
@@ -31,6 +32,19 @@ fn main() {
                 eprintln!("Error: {e}");
                 std::process::exit(1);
             }
+            std::process::exit(0);
+        }
+        Some("telegram") => {
+            let model = args.iter().skip(1)
+                .find(|a| !a.starts_with('-'))
+                .cloned()
+                .or_else(config::load_last_model)
+                .unwrap_or_else(|| "claude-haiku-4-5-20251001".to_string());
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
+            rt.block_on(telegram::run(model));
             std::process::exit(0);
         }
         _ => {}
@@ -65,12 +79,17 @@ fn main() {
         || openclaw_creds
             .as_ref()
             .is_some_and(|c| c.github_copilot_token.is_some());
-    if !has_anthropic && !has_openai && !has_xai && !has_copilot {
+    let has_google = env::var("GOOGLE_API_KEY").is_ok()
+        || openclaw_creds
+            .as_ref()
+            .is_some_and(|c| c.google_key.is_some());
+    if !has_anthropic && !has_openai && !has_xai && !has_copilot && !has_google {
         eprintln!("No API credentials found. Run 'openclaw-code setup' to set up, or set one of:");
         eprintln!("  ANTHROPIC_API_KEY      — Claude models");
         eprintln!("  OPENAI_API_KEY         — GPT / o-series / Codex models");
         eprintln!("  XAI_API_KEY            — Grok models");
         eprintln!("  GITHUB_COPILOT_TOKEN   — GitHub Copilot models");
+        eprintln!("  GOOGLE_API_KEY         — Gemini models");
         std::process::exit(1);
     }
 

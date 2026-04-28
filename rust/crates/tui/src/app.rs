@@ -89,6 +89,12 @@ pub const KNOWN_MODELS: &[ModelEntry] = &[
     // GitHub Copilot
     ModelEntry { id: "github-copilot/gpt-4o",     label: "GPT-4o (Copilot)",      provider: "Copilot"   },
     ModelEntry { id: "github-copilot/gpt-4.1",    label: "GPT-4.1 (Copilot)",     provider: "Copilot"   },
+    // Google — Gemini
+    ModelEntry { id: "gemini-2.5-pro",            label: "Gemini 2.5 Pro",         provider: "Google"    },
+    ModelEntry { id: "gemini-2.5-flash",          label: "Gemini 2.5 Flash",       provider: "Google"    },
+    ModelEntry { id: "gemini-2.0-flash",          label: "Gemini 2.0 Flash",       provider: "Google"    },
+    ModelEntry { id: "gemini-1.5-pro",            label: "Gemini 1.5 Pro",         provider: "Google"    },
+    ModelEntry { id: "gemini-1.5-flash",          label: "Gemini 1.5 Flash",       provider: "Google"    },
 ];
 
 #[derive(Debug, Clone)]
@@ -128,6 +134,10 @@ pub enum OnboardStep {
     /// Only shown for providers that support OAuth (Anthropic).
     ChooseAuthMethod { provider: usize },
     EnterKey { provider: usize },
+    /// After an AI provider key is saved — offer to also configure Telegram.
+    TelegramOffer,
+    /// Enter the Telegram bot token obtained from @BotFather.
+    TelegramToken,
     Done,
 }
 
@@ -144,6 +154,7 @@ pub const ONBOARD_PROVIDERS: &[(&str, &str, &str)] = &[
     ("OpenAI",    "GPT / o-series / Codex models",       "OPENAI_API_KEY"),
     ("xAI",       "Grok models",                          "XAI_API_KEY"),
     ("Copilot",   "GitHub Copilot models",                "GITHUB_COPILOT_TOKEN"),
+    ("Google",    "Gemini models (2.5 Pro, 2.5 Flash, …)", "GOOGLE_API_KEY"),
 ];
 
 impl OnboardPopup {
@@ -174,6 +185,8 @@ pub struct App {
     pub onboard: Option<OnboardPopup>,
     /// Set when the onboard wizard needs to suspend the TUI and run OAuth stdio flow.
     pub pending_oauth: bool,
+    /// Set when the onboard wizard needs to suspend the TUI and run the Copilot device flow.
+    pub pending_copilot_flow: bool,
 
     /// Full message history sent to the API.
     api_history: Vec<api::InputMessage>,
@@ -200,6 +213,7 @@ impl App {
             model_picker: None,
             onboard: None,
             pending_oauth: false,
+            pending_copilot_flow: false,
             api_history: Vec::new(),
             event_rx: rx,
             event_tx: tx,
@@ -275,6 +289,35 @@ impl App {
                         self.onboard = None;
                         self.display.push(DisplayItem::SystemNote(
                             "OAuth login complete! Credentials saved.".to_string(),
+                        ));
+                    }
+                    Err(e) => {
+                        if let Some(ob) = self.onboard.as_mut() {
+                            ob.error = Some(e);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            if self.pending_copilot_flow {
+                self.pending_copilot_flow = false;
+                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                terminal.show_cursor()?;
+
+                let result = crate::login::github_copilot_device_flow();
+
+                enable_raw_mode()?;
+                execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                terminal.hide_cursor()?;
+                terminal.clear()?;
+
+                match result {
+                    Ok(()) => {
+                        self.onboard = None;
+                        self.display.push(DisplayItem::SystemNote(
+                            "GitHub Copilot login complete! Credentials saved.".to_string(),
                         ));
                     }
                     Err(e) => {
@@ -590,10 +633,12 @@ impl App {
                 }
                 KeyCode::Enter => {
                     let idx = ob.provider_cursor;
-                    // Anthropic supports both OAuth and API key — show method picker.
-                    // Others go straight to key entry.
                     if idx == 0 {
+                        // Anthropic offers both API key and OAuth — show method picker.
                         ob.step = OnboardStep::ChooseAuthMethod { provider: idx };
+                    } else if idx == 3 {
+                        // Copilot always uses the device flow — skip straight to it.
+                        self.pending_copilot_flow = true;
                     } else {
                         ob.step = OnboardStep::EnterKey { provider: idx };
                     }
@@ -607,15 +652,21 @@ impl App {
                 let provider = *provider;
                 match key.code {
                     KeyCode::Esc => { ob.step = OnboardStep::PickProvider; ob.error = None; }
-                    // 1 = API Key, 2 = OAuth
+                    // 1 = paste key (Anthropic only) / device flow (Copilot goes straight here)
                     KeyCode::Char('1') => {
-                        ob.step = OnboardStep::EnterKey { provider };
-                        ob.key_input.clear();
-                        ob.error = None;
+                        if provider == 3 {
+                            self.pending_copilot_flow = true;
+                        } else {
+                            ob.step = OnboardStep::EnterKey { provider };
+                            ob.key_input.clear();
+                            ob.error = None;
+                        }
                     }
+                    // 2 = OAuth browser flow (Anthropic only)
                     KeyCode::Char('2') => {
-                        // Signal the run loop to suspend and run OAuth stdio flow.
-                        self.pending_oauth = true;
+                        if provider != 3 {
+                            self.pending_oauth = true;
+                        }
                     }
                     _ => {}
                 }
@@ -651,6 +702,54 @@ impl App {
                         match save_onboard_profile(&profile_id, cred) {
                             Ok(()) => {
                                 std::env::set_var(env_var, &key_val);
+                                let ob = self.onboard.as_mut().unwrap();
+                                // Offer Telegram setup after any AI provider key is saved.
+                                ob.step = OnboardStep::TelegramOffer;
+                                ob.key_input.clear();
+                                ob.error = None;
+                            }
+                            Err(e) => { ob.error = Some(format!("Save failed: {e}")); }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            OnboardStep::TelegramOffer => match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    let ob = self.onboard.as_mut().unwrap();
+                    ob.step = OnboardStep::TelegramToken;
+                    ob.key_input.clear();
+                    ob.error = None;
+                }
+                _ => {
+                    // Any other key (N, Esc, Enter…) skips Telegram setup.
+                    self.onboard.as_mut().unwrap().step = OnboardStep::Done;
+                }
+            },
+
+            OnboardStep::TelegramToken => {
+                match key.code {
+                    KeyCode::Esc => {
+                        ob.step = OnboardStep::TelegramOffer;
+                        ob.error = None;
+                    }
+                    KeyCode::Backspace => { ob.key_input.pop(); }
+                    KeyCode::Char(c) => { ob.key_input.push(c); }
+                    KeyCode::Enter => {
+                        let token_val = ob.key_input.trim().to_string();
+                        if token_val.is_empty() {
+                            ob.error = Some("Token cannot be empty.".to_string());
+                            return false;
+                        }
+                        let cred = serde_json::json!({
+                            "type": "bot_token",
+                            "provider": "telegram",
+                            "token": token_val,
+                        });
+                        match save_onboard_profile("telegram:default", cred) {
+                            Ok(()) => {
+                                std::env::set_var("TELEGRAM_BOT_TOKEN", &token_val);
                                 let ob = self.onboard.as_mut().unwrap();
                                 ob.step = OnboardStep::Done;
                                 ob.error = None;
@@ -771,6 +870,7 @@ impl App {
             let xai_key = creds.as_ref().and_then(|c| c.xai_key.clone());
             let github_copilot_token =
                 creds.as_ref().and_then(|c| c.github_copilot_token.clone());
+            let google_key = creds.as_ref().and_then(|c| c.google_key.clone());
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -784,6 +884,7 @@ impl App {
                 openai_key,
                 xai_key,
                 github_copilot_token,
+                google_key,
             ));
         });
     }
@@ -801,6 +902,7 @@ fn make_client(
     openai_key: Option<String>,
     xai_key: Option<String>,
     github_copilot_token: Option<String>,
+    google_key: Option<String>,
 ) -> Result<api::ProviderClient, api::ApiError> {
     use api::{
         AuthSource, ClawApiClient, GithubCopilotClient, OpenAiCompatClient, OpenAiCompatConfig,
@@ -883,6 +985,20 @@ fn make_client(
             }
         }
 
+        ProviderKind::Google => {
+            if env::var("GOOGLE_API_KEY").is_ok() {
+                Ok(ProviderClient::Google(OpenAiCompatClient::from_env(
+                    OpenAiCompatConfig::google(),
+                )?))
+            } else if let Some(key) = google_key {
+                Ok(ProviderClient::Google(OpenAiCompatClient::new(
+                    key,
+                    OpenAiCompatConfig::google(),
+                )))
+            } else {
+                Err(api::ApiError::missing_credentials("Google", &["GOOGLE_API_KEY"]))
+            }
+        }
     }
 }
 
@@ -896,6 +1012,7 @@ async fn call_api(
     openai_key: Option<String>,
     xai_key: Option<String>,
     github_copilot_token: Option<String>,
+    google_key: Option<String>,
 ) {
     use api::{
         ContentBlockDelta, InputContentBlock, MessageRequest, OutputContentBlock, ProviderKind,
@@ -915,6 +1032,7 @@ async fn call_api(
         openai_key,
         xai_key,
         github_copilot_token,
+        google_key,
     ) {
         Ok(c) => c,
         Err(e) => {
@@ -927,6 +1045,8 @@ async fn call_api(
                     " — set XAI_API_KEY".to_string(),
                 ProviderKind::GithubCopilot =>
                     " — run `openclaw-code login` and select GitHub Copilot".to_string(),
+                ProviderKind::Google =>
+                    " — set GOOGLE_API_KEY".to_string(),
             };
             let _ = tx.send(ApiEvent::Err(format!("{e}{hint}")));
             return;

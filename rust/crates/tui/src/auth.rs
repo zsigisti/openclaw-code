@@ -24,6 +24,10 @@ pub struct LoadedCredentials {
     pub xai_key: Option<String>,
     /// GitHub OAuth token used to obtain Copilot session tokens at runtime.
     pub github_copilot_token: Option<String>,
+    /// Google AI API key for Gemini models.
+    pub google_key: Option<String>,
+    /// Telegram bot token set via the setup wizard.
+    pub telegram_bot_token: Option<String>,
 }
 
 impl LoadedCredentials {
@@ -98,6 +102,16 @@ fn load_store_file(path: &PathBuf, creds: &mut LoadedCredentials) {
                     if let Some(t) = non_empty_str(cred.get("token")) { creds.github_copilot_token = Some(t); }
                 }
             }
+            ("api_key", "google") => {
+                if creds.google_key.is_none() {
+                    if let Some(key) = non_empty_str(cred.get("key")) { creds.google_key = Some(key); }
+                }
+            }
+            ("bot_token", "telegram") => {
+                if creds.telegram_bot_token.is_none() {
+                    if let Some(t) = non_empty_str(cred.get("token")) { creds.telegram_bot_token = Some(t); }
+                }
+            }
             _ => {}
         }
     }
@@ -145,6 +159,8 @@ pub fn load_openclaw_credentials() -> Option<LoadedCredentials> {
         || creds.openai_key.is_some()
         || creds.xai_key.is_some()
         || creds.github_copilot_token.is_some()
+        || creds.google_key.is_some()
+        || creds.telegram_bot_token.is_some()
     {
         Some(creds)
     } else {

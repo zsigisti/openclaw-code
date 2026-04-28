@@ -30,6 +30,7 @@ pub enum ProviderKind {
     Xai,
     OpenAi,
     GithubCopilot,
+    Google,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -222,6 +223,52 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
             default_base_url: openai_compat::DEFAULT_OPENAI_BASE_URL,
         },
     ),
+    // Google — Gemini models
+    (
+        "gemini-2.5-pro",
+        ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        },
+    ),
+    (
+        "gemini-2.5-flash",
+        ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        },
+    ),
+    (
+        "gemini-2.0-flash",
+        ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        },
+    ),
+    (
+        "gemini-1.5-pro",
+        ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        },
+    ),
+    (
+        "gemini-1.5-flash",
+        ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        },
+    ),
     // GitHub Copilot models (prefixed with "github-copilot/")
     (
         "github-copilot/gpt-4o",
@@ -295,7 +342,7 @@ pub fn resolve_model_alias(model: &str) -> String {
                     "codex-mini" => "codex-mini-latest",
                     _ => trimmed,
                 },
-                ProviderKind::GithubCopilot => trimmed,
+                ProviderKind::GithubCopilot | ProviderKind::Google => trimmed,
             })
         })
         .map_or_else(|| trimmed.to_string(), ToOwned::to_owned)
@@ -324,6 +371,14 @@ pub fn metadata_for_model(model: &str) -> Option<ProviderMetadata> {
             default_base_url: openai_compat::DEFAULT_COPILOT_BASE_URL,
         });
     }
+    if lower.starts_with("gemini-") {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::Google,
+            auth_env: "GOOGLE_API_KEY",
+            base_url_env: "GOOGLE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_GOOGLE_BASE_URL,
+        });
+    }
     None
 }
 
@@ -343,6 +398,9 @@ pub fn detect_provider_kind(model: &str) -> ProviderKind {
     }
     if openai_compat::has_api_key("GITHUB_COPILOT_TOKEN") {
         return ProviderKind::GithubCopilot;
+    }
+    if openai_compat::has_api_key("GOOGLE_API_KEY") {
+        return ProviderKind::Google;
     }
     ProviderKind::ClawApi
 }

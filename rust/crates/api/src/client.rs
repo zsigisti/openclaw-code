@@ -25,6 +25,7 @@ pub enum ProviderClient {
     Xai(OpenAiCompatClient),
     OpenAi(OpenAiCompatClient),
     GithubCopilot(GithubCopilotClient),
+    Google(OpenAiCompatClient),
 }
 
 impl ProviderClient {
@@ -60,6 +61,9 @@ impl ProviderClient {
                     })?;
                 Ok(Self::GithubCopilot(GithubCopilotClient::new(token)))
             }
+            ProviderKind::Google => Ok(Self::Google(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::google(),
+            )?)),
         }
     }
 
@@ -70,6 +74,7 @@ impl ProviderClient {
             Self::Xai(_) => ProviderKind::Xai,
             Self::OpenAi(_) => ProviderKind::OpenAi,
             Self::GithubCopilot(_) => ProviderKind::GithubCopilot,
+            Self::Google(_) => ProviderKind::Google,
         }
     }
 
@@ -79,7 +84,9 @@ impl ProviderClient {
     ) -> Result<MessageResponse, ApiError> {
         match self {
             Self::ClawApi(client) => send_via_provider(client, request).await,
-            Self::Xai(client) | Self::OpenAi(client) => send_via_provider(client, request).await,
+            Self::Xai(client) | Self::OpenAi(client) | Self::Google(client) => {
+                send_via_provider(client, request).await
+            }
             Self::GithubCopilot(client) => send_via_provider(client, request).await,
         }
     }
@@ -92,9 +99,11 @@ impl ProviderClient {
             Self::ClawApi(client) => stream_via_provider(client, request)
                 .await
                 .map(MessageStream::ClawApi),
-            Self::Xai(client) | Self::OpenAi(client) => stream_via_provider(client, request)
-                .await
-                .map(MessageStream::OpenAiCompat),
+            Self::Xai(client) | Self::OpenAi(client) | Self::Google(client) => {
+                stream_via_provider(client, request)
+                    .await
+                    .map(MessageStream::OpenAiCompat)
+            }
             Self::GithubCopilot(client) => stream_via_provider(client, request)
                 .await
                 .map(MessageStream::OpenAiCompat),

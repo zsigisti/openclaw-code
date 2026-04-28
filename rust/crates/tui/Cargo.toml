@@ -15,8 +15,10 @@ dotenvy = "0.15"
 crossterm = "0.28"
 ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
 runtime = { path = "../runtime" }
+serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true
-tokio = { version = "1", features = ["rt-multi-thread"] }
+teloxide = { version = "0.17", features = ["macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
 tools = { path = "../tools" }
 
 [lints]

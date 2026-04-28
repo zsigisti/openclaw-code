@@ -13,6 +13,7 @@ use crate::app::{
     ONBOARD_PROVIDERS,
 };
 
+
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 // ── Palette ────────────────────────────────────────────────────────────────
@@ -538,6 +539,8 @@ fn render_onboard(f: &mut Frame, app: &App, area: Rect) {
         OnboardStep::PickProvider => render_onboard_pick(f, ob, popup),
         OnboardStep::ChooseAuthMethod { provider } => render_onboard_auth_method(f, ob, *provider, popup),
         OnboardStep::EnterKey { provider } => render_onboard_key(f, ob, *provider, popup),
+        OnboardStep::TelegramOffer => render_onboard_telegram_offer(f, popup),
+        OnboardStep::TelegramToken => render_onboard_telegram_token(f, ob, popup),
         OnboardStep::Done => render_onboard_done(f, popup),
     }
 }
@@ -591,6 +594,13 @@ fn render_onboard_auth_method(f: &mut Frame, ob: &OnboardPopup, provider: usize,
     let inner = block.inner(popup);
     f.render_widget(block, popup);
 
+    let (opt1_label, opt1_hint, opt2_label, opt2_hint) = (
+        "API Key          ",
+        "from console.anthropic.com",
+        "OAuth (browser)  ",
+        "free tier — Haiku only",
+    );
+
     let mut lines = vec![
         Line::default(),
         Line::from(Span::styled(
@@ -600,13 +610,13 @@ fn render_onboard_auth_method(f: &mut Frame, ob: &OnboardPopup, provider: usize,
         Line::default(),
         Line::from(vec![
             Span::styled("  [1]  ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled("API Key          ", Style::default().fg(Color::White)),
-            Span::styled("from console.anthropic.com", Style::default().fg(C_DIM)),
+            Span::styled(opt1_label, Style::default().fg(Color::White)),
+            Span::styled(opt1_hint, Style::default().fg(C_DIM)),
         ]),
         Line::from(vec![
             Span::styled("  [2]  ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled("OAuth (browser)  ", Style::default().fg(Color::White)),
-            Span::styled("free tier — Haiku only", Style::default().fg(C_DIM)),
+            Span::styled(opt2_label, Style::default().fg(Color::White)),
+            Span::styled(opt2_hint, Style::default().fg(C_DIM)),
         ]),
     ];
 
@@ -673,6 +683,107 @@ fn render_onboard_key(f: &mut Frame, ob: &OnboardPopup, provider: usize, popup: 
     let cx = (input_area.x + 3 + masked.len() as u16).min(input_area.x + input_area.width - 2);
     let cy = input_area.y + 1;
     f.set_cursor_position((cx, cy));
+
+    if let Some(err) = &ob.error {
+        let err_y = input_area.y + input_area.height + 1;
+        if err_y < inner.y + inner.height {
+            let err_area = Rect { x: inner.x, y: err_y, width: inner.width, height: 1 };
+            f.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("  ✘ ", Style::default().fg(C_RED)),
+                    Span::styled(err.clone(), Style::default().fg(C_RED)),
+                ])),
+                err_area,
+            );
+        }
+    }
+}
+
+fn render_onboard_telegram_offer(f: &mut Frame, popup: Rect) {
+    let block = onboard_block(
+        " ◈ Telegram Bot — Optional   Y yes   N/Esc skip ".to_string(),
+        C_YELLOW,
+    );
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let lines = vec![
+        Line::default(),
+        Line::from(Span::styled(
+            "  AI provider saved!",
+            Style::default().fg(C_GREEN).add_modifier(Modifier::BOLD),
+        )),
+        Line::default(),
+        Line::from(Span::styled(
+            "  Set up a Telegram bot for 24/7 assistant access?",
+            Style::default().fg(Color::White),
+        )),
+        Line::default(),
+        Line::from(vec![
+            Span::styled("  [Y]  ", Style::default().fg(C_ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("Yes — enter bot token", Style::default().fg(Color::White)),
+        ]),
+        Line::from(vec![
+            Span::styled("  [N]  ", Style::default().fg(C_DIM)),
+            Span::styled("Skip for now", Style::default().fg(C_DIM)),
+        ]),
+        Line::default(),
+        Line::from(Span::styled(
+            "  Get a token: message @BotFather on Telegram",
+            Style::default().fg(C_DIM),
+        )),
+    ];
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
+}
+
+fn render_onboard_telegram_token(f: &mut Frame, ob: &OnboardPopup, popup: Rect) {
+    let block = onboard_block(
+        " ◈ Telegram Bot Token   Enter confirm   Esc back ".to_string(),
+        C_YELLOW,
+    );
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let masked: String = if ob.key_input.len() > 6 {
+        format!(
+            "{}{}",
+            "•".repeat(ob.key_input.len() - 6),
+            &ob.key_input[ob.key_input.len() - 6..]
+        )
+    } else {
+        ob.key_input.clone()
+    };
+
+    let input_area = Rect {
+        x: inner.x + 2,
+        y: inner.y + 3,
+        width: inner.width.saturating_sub(4),
+        height: 3,
+    };
+
+    let lines = vec![
+        Line::default(),
+        Line::default(),
+        Line::from(Span::styled(
+            "  TELEGRAM_BOT_TOKEN",
+            Style::default().fg(C_DIM),
+        )),
+    ];
+    f.render_widget(Paragraph::new(Text::from(lines)), inner);
+
+    let key_text = if ob.key_input.is_empty() {
+        Span::styled("  paste token from @BotFather…", Style::default().fg(C_DIM))
+    } else {
+        Span::styled(format!("  {masked}"), Style::default().fg(Color::White))
+    };
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(C_YELLOW));
+    f.render_widget(Paragraph::new(key_text).block(input_block), input_area);
+
+    let cx = (input_area.x + 3 + masked.len() as u16).min(input_area.x + input_area.width - 2);
+    f.set_cursor_position((cx, input_area.y + 1));
 
     if let Some(err) = &ob.error {
         let err_y = input_area.y + input_area.height + 1;
